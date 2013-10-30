@@ -34,7 +34,7 @@ class ApplicationSpec extends Specification {
         "field1" -> "val1",
         "field2" -> "val2"))
         
-        val result = await(controllers.Application.json(fr).run)
+        val result = (controllers.Application.json(fr)).run
         
         println(contentAsString(result));
         status(result) must equalTo(OK)
