@@ -1,20 +1,25 @@
-package test
-
 import org.specs2.mutable._
 import play.api.test._
 import play.api.test.Helpers._
 import play.api.libs.json._
+import play.api.http.HeaderNames
+import org.junit.runner.RunWith
+import org.scalatest.junit.JUnitRunner
+import org.scalatest.FunSpec
+import org.scalatest.matchers.ShouldMatchers
+import akka.util.Timeout
+import play.api.libs.iteratee.Input
+import play.api.http.Writeable
+import play.api.libs.concurrent.Execution.Implicits._
 
-/**
- * Add your spec here.
- * You can mock out a whole application including requests, plugins etc.
- * For more information, consult the wiki.
- */
-class ApplicationSpec extends Specification {
+@RunWith(classOf[JUnitRunner])
+class ApplicationSpec extends FunSpec with ShouldMatchers {
   
-  "Application" should {
+  implicit val localTimeout: Timeout = Timeout(500000)
+  
+  describe("Application") {
     
-    "valid json" in {
+    it("should process json that is routed") {
       running(FakeApplication()) {
         
        val fr =  FakeRequest(GET, "/json").withJsonBody(Json.obj(
@@ -23,22 +28,41 @@ class ApplicationSpec extends Specification {
         
         val result = route(fr).get
         
-        status(result) must equalTo(OK)
+        status(result)(localTimeout) should equal (OK)
       }
     }
     
-     "invalid json" in {
+    it("should process json sent directly to the controller") {
       running(FakeApplication()) {
         
        val fr =  FakeRequest(GET, "/json").withJsonBody(Json.obj(
         "field1" -> "val1",
-        "field2" -> "val2"))
+        "field2" -> "val2")).withHeaders(HeaderNames.CONTENT_TYPE -> "application/json")
         
-        val result = await(controllers.Application.json(fr).run)
+        val result = processRequest(fr)
         
-        println(contentAsString(result));
-        status(result) must equalTo(OK)
+        println(contentAsString(result)(localTimeout))
+        status(result)(localTimeout) should equal (OK)
       }
     }
+    
+    def processRequest[T](fr: FakeRequest[T])(implicit w: Writeable[T]) = {
+      (controllers.Application.json(fr)).feed(Input.El(w.transform(fr.body))).flatMap(_.run)
+    }
+    
+    it("should process json sent as a string directly to the controller") {
+      running(FakeApplication()) {
+        
+       val fr =  FakeRequest(GET, "/json").withBody(Json.obj(
+        "field1" -> "val1",
+        "field2" -> "val2").toString).withHeaders(HeaderNames.CONTENT_TYPE -> "application/json")
+        
+        val result = processRequest(fr)
+        
+        println(contentAsString(result)(localTimeout))
+        status(result)(localTimeout) should equal (OK)
+      }
+    }
+    
   }
 }

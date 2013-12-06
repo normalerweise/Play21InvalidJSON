@@ -10,7 +10,8 @@ object ApplicationBuild extends Build {
   val appDependencies = Seq(
     // Add your project dependencies here,
     jdbc,
-    anorm
+    anorm,
+    "org.scalatest" %% "scalatest" % "1.9.1" % "test"
   )
 
 
